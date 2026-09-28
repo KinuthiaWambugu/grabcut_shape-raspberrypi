@@ -1,0 +1,36 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Test data, outputs, and camera captures
+data/
+*.png
+*.jpg
+*.jpeg
+*.npy
+*.npz
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configurations & secrets
+.env
+*.local
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor artifacts (optional, keep if you want local settings private)
+.vscode/
+.idea/
