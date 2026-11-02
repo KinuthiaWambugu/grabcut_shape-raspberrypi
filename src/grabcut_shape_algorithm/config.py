@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
+import os
 
 @dataclass(frozen=True)
 class PipelineConfig:
@@ -16,5 +17,15 @@ class PipelineConfig:
     project_root: Path = Path(__file__).resolve().parents[2]
     data_raw_dir: Path = project_root/"data"/"raw"
     data_out_dir: Path = project_root/"data"/"outputs"
+    robot_ip: str = os.environ.get("NIRYO_IP", "192.168.24.7")
+    niryo_poses: Dict[str, Tuple[float, ...]] = field(default_factory=lambda:{
+        "P1": (-0.006, 0.213, -0.350, -0.048, -1.426, -0.061),
+        "P2": (0.910, 0.025, 0.008, -0.532, -1.909, -0.121),
+        "P3": (-0.845, -0.126, 0.111, 0.676, -1.905, -0.121),
+        "P4": (0.026, -0.809, 0.456, -0.019, -1.911, -0.004),
+        "P6": (-0.049, 0.026, -0.146, 0.006, -1.618, -0.062),
+    })
+    observation_pose: str = "P6"
+    captured_dir = Path = project_root/"data"/"captured_niryo"
 
 DEFAULT_CONFIG = PipelineConfig()
