@@ -119,6 +119,15 @@ def detect_four_circle_points(img_rgb: np.ndarray,
     bbox = (int(x_min), int(y_min), int(x_max - x_min), int(y_max - y_min))
     return bbox, centres
 
+def resize_if_larger(img: np.ndarray, target_size: Tuple[int, int]) -> np.ndarray:
+    """Downscale to target_size only if the image exceeds it in width or height."""
+    target_w, target_h = target_size
+    h, w = img.shape[:2]
+    if w > target_w or h > target_h:
+        return cv2.resize(img, target_size, interpolation=cv2.INTER_AREA)
+    return img.copy()
+
+
 def load_and_preprocess_image(
         image_path: Path | str,
         target_size: Tuple[int, int] = (480, 360),
@@ -132,7 +141,7 @@ def load_and_preprocess_image(
     if img_bgr is None:
         raise ValueError(f"OpenCV failed to decode image: {path.resolve()}")
 
-    resized_bgr = cv2.resize(img_bgr, target_size, interpolation=cv2.INTER_AREA)
+    resized_bgr = resize_if_larger(img_bgr, target_size)
     cs = color_space.lower()
     if cs == "rgb":
         converted = cv2.cvtColor(resized_bgr, cv2.COLOR_BGR2RGB)
@@ -192,14 +201,14 @@ def load_detect_and_preprocess_image(
         
         if debug:
             print(f"Cropped shape: {cropped_rgb.shape}")
-        cropped_resized_rgb = cv2.resize(cropped_rgb, target_size, interpolation=cv2.INTER_AREA)
+        cropped_resized_rgb = resize_if_larger(cropped_rgb, target_size)
         if debug:
             print(f"GMM input image shape: {cropped_resized_rgb.shape}")
 
         return cropped_resized_rgb, bbox_raw, centres
 
     #Resize fallback
-    resized_bgr = cv2.resize(img_bgr, target_size, interpolation=cv2.INTER_AREA)
+    resized_bgr = resize_if_larger(img_bgr, target_size)
     cs = color_space.lower()
     if cs == "rgb":
         converted = cv2.cvtColor(resized_bgr, cv2.COLOR_BGR2RGB)

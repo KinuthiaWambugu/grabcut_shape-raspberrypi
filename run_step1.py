@@ -15,8 +15,8 @@ def main():
     cfg = DEFAULT_CONFIG
     cfg.data_out_dir.mkdir(parents=True, exist_ok=True)
 
-    bg_path = cfg.data_raw_dir / "background_img.jpg"
-    scene_path = cfg.data_raw_dir / "Scene4.jpeg"
+    bg_path = cfg.data_raw_dir / "Niryo/P6_crop.png"
+    scene_path = cfg.data_raw_dir / "Niryo/scene01_P6_crop.png"
 
     if not bg_path.exists() or not scene_path.exists():
         print(
