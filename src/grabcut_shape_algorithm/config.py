@@ -26,6 +26,7 @@ class PipelineConfig:
         "P6": (-0.049, 0.026, -0.146, 0.006, -1.618, -0.062),
     })
     observation_pose: str = "P6"
+    live_capture_poses : Tuple[str, ...] = ("P1","P2", "P3", "P4", "P6")
     captured_dir = Path = project_root/"data"/"captured_niryo"
 
 DEFAULT_CONFIG = PipelineConfig()
