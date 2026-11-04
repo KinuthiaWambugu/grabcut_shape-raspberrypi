@@ -1,8 +1,15 @@
 from pathlib import Path
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
-from pyniryo import JointsPosition, NiryoRobot, uncompress_image
+from pyniryo import (
+    JointsPosition, 
+    NiryoRobot, 
+    uncompress_image, 
+    debug_markers,
+    extract_img_workspace
+    )
 
 
 def _as_position(position):
@@ -11,6 +18,38 @@ def _as_position(position):
         return JointsPosition(*position)
     return position
 
+class WorkspaceNotFound(RuntimeError):
+    "The 4 Niryo markers couldn't be detected in the image"
+
+@dataclass
+class WorkspaceCrop:
+    image: np.ndarray #Corrected area between the markers
+    debug_image: np.ndarray #full frame with detected markers drawn and numbered
+    debug_ok: bool
+
+def set_workspace_res(side_px):
+    try:
+        from pyniryo.vision import markers_detection
+        markers_detection.IM_EXTRACT_SMALL_SIDE_PIXELS = int(side_px)
+    except Exception as e:
+        print(f"Warning: couldn't set working res {e}; using pyNiryo default")
+
+def crop_workspace(img_bgr, workspace_ratio=1.0, side_px=360):
+    set_workspace_res(side_px)
+    debug_ok, debug_image = debug_markers(img_bgr, workspace_ratio)
+    crop = extract_img_workspace(img_bgr, workspace_ratio)
+    if crop is None or crop.size == 0:
+        raise WorkspaceNotFound("Could not find 4 Niryo markers")
+    return WorkspaceCrop(image=crop, debug_image=debug_image, debug_ok=bool(debug_ok))
+
+def crop_path_for(image_path):
+    image_path = Path(image_path)
+    return image_path.parent / "crops" / image_path.name
+ 
+ 
+def markers_path_for(image_path):
+    image_path = Path(image_path)
+    return image_path.parent / "markers" / image_path.name
 
 def connect(ip, intrinsics_path=None):
     """Connect, calibrate, and (optionally) save the camera intrinsics."""
@@ -55,6 +94,28 @@ def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None
             return image_path
         print(f"{label}: failed to save image")
         return None
+
+        if not crop:
+            return image_path
+
+        try:
+            ws = crop_workspace(img, workspace_ratio, workspace_side_px)
+        except WorkspaceNotFound as e:
+            print(f"{label}: {e}")
+            return None
+ 
+        crop_path = crop_path_for(image_path)
+        markers_path = markers_path_for(image_path)
+        crop_path.parent.mkdir(parents=True, exist_ok=True)
+        markers_path.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(markers_path), ws.debug_image)
+        if not cv2.imwrite(str(crop_path), ws.image):
+            print(f"{label}: failed to save workspace crop")
+            return None
+        flag = "" if ws.debug_ok else " (low-contrast markers: debug_markers disagrees)"
+        print(f"{label}: workspace crop {ws.image.shape[1]}x{ws.image.shape[0]} "
+              f"saved to {crop_path.resolve()}{flag}")
+        return crop_path
 
     except Exception as e:
         print(f"ERROR at {label}: {type(e).__name__}: {e}")
@@ -102,3 +163,5 @@ def capture_niryo_images(ip, positions, output_dir, capture_home=True,
     finally:
         robot.close_connection()
         print("Robot connection closed.")
+
+

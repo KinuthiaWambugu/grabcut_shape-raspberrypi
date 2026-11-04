@@ -45,3 +45,28 @@ def test_capture_all_poses_and_home(tmp_path):
     assert set(saved) == expected
     for path in saved.values():
         _check_image(path)
+
+def test_capture_with_workspace_crop(tmp_path):
+    saved = capture_niryo_images(
+        cfg.robot_ip,
+        cfg.niryo_poses,
+        tmp_path,
+        capture_home = False,
+        crop=True,
+        workspace_ratio = cfg.workspace_ratio,
+        workspace_side_px = cfg.workspace_side_px
+    )
+
+    assert set(saved) == set(cfg.niryo_poses), (
+        f"No marker crop for: {sorted(set(cfg.niryo_poses) - set(saved))}"
+        f"Look at the overlays in {tmp_path / 'markers'}"
+    )
+    side = cfg.workspace_side_px
+    for label, crop_path in saved.items():
+        assert crop_path == tmp_path /"crops" / f"{label}.png"
+        _check_image(crop_path)
+        assert (tmp_path / label).with_suffix(".png").is_file()
+        assert (tmp_path / "markers"/ f"{label}.png").is_file() #full frame kept
+        h, w = cv2.imread(str(crop_path)).shape[:2]
+        assert min(h,w) == side
+        assert max(h,w) == int(round(max(cfg.workspace_ratio, 1/ cfg.workspace_ratio) *side))
