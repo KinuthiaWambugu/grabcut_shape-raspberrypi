@@ -2,6 +2,7 @@ import sys
 import cv2
 import argparse
 import random
+from pathlib import Path
 
 from src.grabcut_shape_algorithm.config import DEFAULT_CONFIG
 from src.grabcut_shape_algorithm.core.gmm_priors import DualGMM
@@ -19,21 +20,73 @@ def parse_args():
     parser.add_argument("--ip", default=None, help="robot ip (defaults to one in config file, ROBOT_IP)" )
     parser.add_argument("--poses", nargs="+", default=None, metavar="LABEL", help="poses to capture from live poses")
     parser.add_argument("--seed", type=int, default=None, help="seed for random image obtaining")
+    parser.add_argument("--bg", default=None, help="background image path (overrides the default offline file)")
+    parser.add_argument("--scene", default=None, help="scene image path (overrides the default offline file)")
+    parser.add_argument("--crop", action="store_true",
+                        help="offline inputs are full Niryo frames: crop them to the 4-marker workspace first")
     return parser.parse_args()
+
+def use_niryo_crop(cfg)->bool:
+    return getattr(cfg, "crop_method", "niryo") == "niryo"
+
+def crop_to_workspace(image_path, cfg):
+    """Full Niryo frame -> workspace crop between the 4 markers.
+
+    Saves the crop to <dir>/crops/<name> and the marker overlay to <dir>/markers/<name>
+    (same layout as crop_path_for / markers_path_for). Returns the crop path.
+    Raises WorkspaceNotFound if the markers can't be found.
+    """
+    from src.grabcut_shape_algorithm.camera.niryo_camera import (
+        crop_workspace,
+        crop_path_for,
+        markers_path_for,
+    )
+
+    image_path = Path(image_path)
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise ValueError(f"OpenCV failed to read {image_path}")
+
+    ws = crop_workspace(img, cfg.workspace_ratio, cfg.workspace_side_px)
+
+    crop_path = crop_path_for(image_path)
+    markers_path = markers_path_for(image_path)
+    crop_path.parent.mkdir(parents=True, exist_ok=True)
+    markers_path.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(markers_path), ws.debug_image)
+    if not cv2.imwrite(str(crop_path), ws.image):
+        raise IOError(f"Failed to save workspace crop to {crop_path}")
+
+    flag = "" if ws.debug_ok else "  (low-contrast markers: debug_markers disagrees)"
+    print(f"{image_path.name}: workspace crop {ws.image.shape[1]}x{ws.image.shape[0]} -> {crop_path}{flag}")
+    return crop_path
+
 
 def acquire_paths(cfg, args):
     """
     Return bg and scene paths
     """
-    bg_path = cfg.data_raw_dir/"Niryo"/"P6_crop.png"
-    scene_path = cfg.data_raw_dir/"Niryo"/"scene01_P6_crop.png"
+    bg_path = Path(args.bg) if args.bg else cfg.data_raw_dir/"Niryo"/"P6_crop.png"
+    scene_path = Path(args.scene) if args.scene else cfg.data_raw_dir/"Niryo"/"scene01_P6_crop.png"
+    do_crop = use_niryo_crop(cfg)
+
+    if args.crop and do_crop and not(args.live_background or args.live_scene):
+        from src.grabcut_shape_algorithm.camera.niryo_camera import WorkspaceNotFound
+        try:
+            bg_path = crop_to_workspace(bg_path, cfg)
+            scene_path = crop_to_workspace(scene_path, cfg)
+        except WorkspaceNotFound as e:
+            print(f"[Error]: {e}")
+            sys.exit(1)
+
     if args.live_background or args.live_scene:
         from src.grabcut_shape_algorithm.camera.niryo_camera import (
             capture_pose,
-            connect
+            connect,
+            WorkspaceNotFound
         )
         labels = args.poses or list(cfg.live_capture_poses)
-        unknown = [1 for 1 in labels if 1 not in cfg.niryo_poses]
+        unknown = [l for l in labels if l not in cfg.niryo_poses]
         if unknown:
             print(f"[Error] Unknown pose labels: {unknown}. Known {list(cfg.niryo_poses)}")
             sys.exit(1)
@@ -47,7 +100,14 @@ def acquire_paths(cfg, args):
                     filename = f"{prefix}_{label}.png"
                 )
                 if path is not None:
-                    paths.append(path)
+                    continue
+                if do_crop:
+                    try:
+                        path = crop_to_workspace(path, cfg)
+                    except WorkspaceNotFound as e:
+                        print(f"{prefix}_{label}: {e}-skipping pose")
+                        continue
+                paths.append(path)
             return paths
 
         robot = connect(
@@ -98,15 +158,6 @@ def main():
             print(f"{p}")
         sys.exit(1)
 
-    """
-        if not bg_path.exists() or not scene_path.exists():
-            print(
-                f"[ERROR] Place 'background_img.jpg' and "
-                f"'Scene4.jpeg' in {cfg.data_raw_dir}"
-            )
-            sys.exit(1)
-    """
-
     print("1. Loading & resizing images...")
 
     bg_bgr, bg_converted = load_and_preprocess_image(
@@ -114,7 +165,7 @@ def main():
         target_size=cfg.target_size,
         color_space=cfg.color_space,
     )
-
+    """
     scene_cropped, bbox_raw, centres = (
         load_detect_and_preprocess_image(
             scene_path,
@@ -140,6 +191,29 @@ def main():
     print(
         f"[✓] Circle centres: {centres}"
     )
+    """
+    if use_niryo_crop(cfg):
+        _, scene_cropped = load_and_preprocess_image(
+            scene_path,
+            target_size=cfg.target_size,
+            color_space=cfg.color_space,
+        )
+        bbox_raw, centres = None, None
+    else:
+        scene_cropped, bbox_raw, centres = load_detect_and_preprocess_image(
+            scene_path,
+            target_size=cfg.target_size,
+            color_space=cfg.color_space,
+            detect_circles=True,
+            debug=True,
+        )
+
+    print(f"[✓] Background image: {bg_converted.shape}")
+    print(f"[✓] Scene cropped image: {scene_cropped.shape}")
+    if bbox_raw is not None:
+        print(f"[✓] Detected bounding box: {bbox_raw}")
+        print(f"[✓] Circle centres: {centres}")
+
 
     # =========================================================
     # 2. Fit Background and Scene GMMs

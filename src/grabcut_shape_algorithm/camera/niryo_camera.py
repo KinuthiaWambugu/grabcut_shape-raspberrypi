@@ -69,7 +69,8 @@ def connect(ip, intrinsics_path=None):
     return robot
 
 
-def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None):
+def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None,
+                 crop=False, workspace_ratio=1.0, workspace_side_px=360):
     """Move to one pose, grab an image and save it. Returns the path, or None
     if the robot returned an invalid image."""
     output_dir = Path(output_dir)
@@ -89,11 +90,10 @@ def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None
 
         image_path = output_dir / (filename or f"{label}.png")
 
-        if cv2.imwrite(str(image_path), img):
-            print(f"{label}: image saved to {image_path.resolve()}")
-            return image_path
-        print(f"{label}: failed to save image")
-        return None
+        if not cv2.imwrite(str(image_path), img):
+            print(f"{label}: failed to save image")
+            return None
+        print(f"{label}: image saved to {image_path.resolve}")
 
         if not crop:
             return image_path
@@ -123,8 +123,8 @@ def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None
         raise
 
 
-def capture_niryo_images(ip, positions, output_dir, capture_home=True,
-                         settle_s=1.5, prefix=""):
+def  capture_niryo_images(ip, positions, output_dir, capture_home=True,
+                         settle_s=1.5, prefix="", crop=False, workspace_ratio=1.0, workspace_side_px=360):
     """Run the capture sequence. `positions` maps label -> joint position.
 
     Returns {label: Path} for every image that was saved.
