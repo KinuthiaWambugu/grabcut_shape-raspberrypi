@@ -99,7 +99,7 @@ def acquire_paths(cfg, args):
                     robot, label, cfg.niryo_poses[label], cfg.captured_dir,
                     filename = f"{prefix}_{label}.png"
                 )
-                if path is not None:
+                if path is None:
                     continue
                 if do_crop:
                     try:

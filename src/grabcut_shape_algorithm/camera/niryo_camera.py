@@ -93,7 +93,7 @@ def capture_pose(robot, label, position, output_dir, settle_s=1.5, filename=None
         if not cv2.imwrite(str(image_path), img):
             print(f"{label}: failed to save image")
             return None
-        print(f"{label}: image saved to {image_path.resolve}")
+        print(f"{label}: image saved to {image_path.resolve()}")
 
         if not crop:
             return image_path
@@ -140,6 +140,8 @@ def  capture_niryo_images(ip, positions, output_dir, capture_home=True,
             path = capture_pose(
                 robot, label, position, output_dir,
                 settle_s=settle_s, filename=f"{prefix}{label}.png",
+                crop=crop, workspace_ratio=workspace_ratio,
+                workspace_side_px=workspace_side_px
             )
             if path is not None:
                 saved[label] = path
