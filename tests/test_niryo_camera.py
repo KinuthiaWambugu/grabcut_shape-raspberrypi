@@ -6,6 +6,8 @@ pytest.importorskip("pyniryo")
 
 from src.grabcut_shape_algorithm.camera.niryo_camera import (
     capture_niryo_images,
+    capture_session,
+    connect
 )
 from src.grabcut_shape_algorithm.config import DEFAULT_CONFIG as cfg
 
@@ -70,3 +72,31 @@ def test_capture_with_workspace_crop(tmp_path):
         h, w = cv2.imread(str(crop_path)).shape[:2]
         assert min(h,w) == side
         assert max(h,w) == int(round(max(cfg.workspace_ratio, 1/ cfg.workspace_ratio) *side))
+
+def test_capture_session_separate_folders(tmp_path):
+    """Real robot: background and scene batches land in different folders, numbered,
+    without overwriting each other. The prompts are answered by a script, so nobody
+    has to type anything. The arm moves."""
+    answers = iter([True, False,          # background: one batch, then quit
+                    True, True, False])   # scenes: two batches, then quit
+    poses = dict(list(cfg.niryo_poses.items())[:2])      # two poses keeps it quick
+    bg_dir, scene_dir = tmp_path / "background", tmp_path / "scene"
+ 
+    robot = connect(cfg.robot_ip)
+    try:
+        result = capture_session(
+            robot, poses, bg_dir, scene_dir,
+            ask=lambda prompt: next(answers), capture_home=False,
+        )
+    finally:
+        robot.close_connection()
+ 
+    assert len(result["background"]) == 1
+    assert len(result["scene"]) == 2
+ 
+    bg_files = sorted(p.name for p in bg_dir.glob("*.png"))
+    scene_files = sorted(p.name for p in scene_dir.glob("*.png"))
+    assert bg_files == sorted(f"background01_{lbl}.png" for lbl in poses)
+    assert scene_files == sorted(f"scene{i:02d}_{lbl}.png" for i in (1, 2) for lbl in poses)
+    for path in list(bg_dir.glob("*.png")) + list(scene_dir.glob("*.png")):
+        _check_image(path)

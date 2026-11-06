@@ -16,6 +16,7 @@ data/
 *.jpeg
 *.npy
 *.npz
+*.rar
 
 # Testing & Coverage
 .pytest_cache/

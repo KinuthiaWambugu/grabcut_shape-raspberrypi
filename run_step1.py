@@ -81,7 +81,7 @@ def acquire_paths(cfg, args):
 
     if args.live_background or args.live_scene:
         from src.grabcut_shape_algorithm.camera.niryo_camera import (
-            capture_pose,
+            capture_batches,
             connect,
             WorkspaceNotFound
         )
@@ -92,22 +92,26 @@ def acquire_paths(cfg, args):
             sys.exit(1)
         rng = random.Random(args.seed)
 
-        def capture_set(robot, prefix):
+        positions = {label: cfg.niryo_poses[label] for label in labels}
+
+        def capture_pool(robot, stem, save_dir, first_prompt, next_prompt):
+            """Capture numbered batches into save_dir (prompting to continue or quit),
+            crop every pose image, and return the usable image paths (HOME excluded)."""
+            batches = capture_batches(
+                robot, positions, save_dir, stem, first_prompt, next_prompt,
+            )
             paths = []
-            for label in labels:
-                path = capture_pose(
-                    robot, label, cfg.niryo_poses[label], cfg.captured_dir,
-                    filename = f"{prefix}_{label}.png"
-                )
-                if path is None:
-                    continue
-                if do_crop:
-                    try:
-                        path = crop_to_workspace(path, cfg)
-                    except WorkspaceNotFound as e:
-                        print(f"{prefix}_{label}: {e}-skipping pose")
+            for batch in batches:
+                for label, path in batch.items():
+                    if label == "HOME":
                         continue
-                paths.append(path)
+                    if do_crop:
+                        try:
+                            path = crop_to_workspace(path, cfg)
+                        except WorkspaceNotFound as e:
+                            print(f"{path.name}: {e} - skipping pose")
+                            continue
+                    paths.append(path)
             return paths
 
         robot = connect(
@@ -118,24 +122,30 @@ def acquire_paths(cfg, args):
             robot.move_to_home_pose()
             robot.wait(1.5)
             if args.live_background:
-                input("Clear workspace, press Enter to capture bg images:")
-                bg_images = capture_set(robot, "background")
+                bg_images = capture_pool(
+                    robot, "background", cfg.background_dir,
+                    "Clear the workspace, then capture the background",
+                    "Capture another background batch (e.g. different lighting)?",
+                )
                 if not bg_images:
-                    print("Error no valid bg images was captured")
+                    print("Error: no valid background images were captured")
                     sys.exit(1)
                 bg_path = rng.choice(bg_images)
-                print(f"Background selected at random: {bg_path.name}"
-                      f"from {len(bg_images)} captured")
+                print(f"Background selected at random: {bg_path.name} "
+                      f"(from {len(bg_images)} captured)")
 
             if args.live_scene:
-                input("Place objects on scene and press Enter:")
-                scene_images = capture_set(robot, "scene")
+                scene_images = capture_pool(
+                    robot, "scene", cfg.scene_dir,
+                    "Set up the scene, then capture",
+                    "Set up another scene and capture?",
+                )
                 if not scene_images:
-                    print(f"Error, No valid scene images captured")
+                    print("Error: no valid scene images were captured")
                     sys.exit(1)
                 scene_path = rng.choice(scene_images)
-                print(f"Scene selected at random: {scene_path.name}"
-                      f"from {len(scene_images)} captured")
+                print(f"Scene selected at random: {scene_path.name} "
+                      f"(from {len(scene_images)} captured)")
         finally:
             robot.close_connection()
             print("Robot disconnected")
