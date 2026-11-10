@@ -28,7 +28,7 @@ class PipelineConfig:
     observation_pose: str = "P6"
     live_capture_poses : Tuple[str, ...] = ("P1","P2", "P3", "P4", "P6")
     captured_dir : Path = project_root/"data"/"captured_niryo"
-    crop_method: str= "niryo"
+    crop_method: str= "circles"  #use niryo in live-capture
     workspace_ratio: float =1.0
     workspace_side_px: int = 360
 

@@ -67,7 +67,7 @@ def acquire_paths(cfg, args):
     Return bg and scene paths
     """
     bg_path = Path(args.bg) if args.bg else cfg.data_raw_dir/"Niryo"/"P6_crop.png"
-    scene_path = Path(args.scene) if args.scene else cfg.data_raw_dir/"Niryo"/"scene01_P6_crop.png"
+    scene_path = Path(args.scene) if args.scene else cfg.data_raw_dir/"Scene"/"scene01_P1_crop.png"
     do_crop = use_niryo_crop(cfg)
 
     if args.crop and do_crop and not(args.live_background or args.live_scene):
@@ -226,7 +226,7 @@ def main():
     )
     """
     if use_niryo_crop(cfg):
-        _, scene_cropped = load_and_preprocess_image(
+        _, scene_cropped = load_detect_and_preprocess_image(
             scene_path,
             target_size=cfg.target_size,
             color_space=cfg.color_space,

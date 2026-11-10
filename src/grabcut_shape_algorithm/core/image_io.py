@@ -201,6 +201,12 @@ def load_detect_and_preprocess_image(
         
         if debug:
             print(f"Cropped shape: {cropped_rgb.shape}")
+        margin = 10
+        cropped_rgb = cropped_rgb[
+            margin: -margin,
+            margin: -margin
+        ]
+        
         cropped_resized_rgb = resize_if_larger(cropped_rgb, target_size)
         if debug:
             print(f"GMM input image shape: {cropped_resized_rgb.shape}")
