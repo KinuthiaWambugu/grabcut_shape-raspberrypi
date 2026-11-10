@@ -87,10 +87,10 @@ def main():
     cfg = DEFAULT_CONFIG
     cfg.data_out_dir.mkdir(parents=True, exist_ok=True)
 
-    bg_path = cfg.data_raw_dir / "background_img.jpg"
+    bg_path = cfg.data_raw_dir / "Niryo bg/P2.png"
 
     # Scenes folder: first CLI argument, else <data_raw_dir>/scenes
-    scenes_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else cfg.data_raw_dir / "scenes"
+    scenes_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else cfg.data_raw_dir / "Scene"
 
     if not bg_path.exists():
         print(f"[ERROR] Place 'background_img.jpg' in {cfg.data_raw_dir}")
@@ -119,7 +119,7 @@ def main():
     print(f"\n2. Fitting Background GMM (K={cfg.k_bg})...")
     analyzer = DualGMM(
         k_bg=cfg.k_bg,
-        k_scene=6,
+        k_scene=cfg.k_scene,
         max_samples=cfg.max_gmm_samples,
     )
     analyzer.fit_bg(bg_converted)

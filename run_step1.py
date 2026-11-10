@@ -231,7 +231,7 @@ def main():
 
     print(
         "\n2. Fitting Background GMM "
-        f"(K={cfg.k_bg}) and Scene GMM (K=6)..."
+        f"(K={cfg.k_bg}) and Scene GMM (K={cfg.k_scene})..."
     )
 
     analyzer = DualGMM(
