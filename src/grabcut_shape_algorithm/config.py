@@ -29,7 +29,7 @@ class PipelineConfig:
     live_capture_poses : Tuple[str, ...] = ("P1","P2", "P3", "P4", "P6")
     captured_dir : Path = project_root/"data"/"captured_niryo"
     crop_method: str= "niryo"
-    workspace_ratio: int =1.0
+    workspace_ratio: float =1.0
     workspace_side_px: int = 360
 
 DEFAULT_CONFIG = PipelineConfig()
