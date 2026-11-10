@@ -158,10 +158,24 @@ def main():
     cfg.data_out_dir.mkdir(parents=True, exist_ok=True)
 
     bg_path, scene_path = acquire_paths(cfg, args)
+    niryo_dir = cfg.data_raw_dir/"Niryo_bg"
+    if args.bg:
+        bg_paths = [Path(args.bg)]
+    elif args.live_background:
+        bg_paths = [bg_path]
+    else:
+        bg_paths = [
+            niryo_dir / name
+            for name in [
+                "P1.png",
+                "P2.png",
+                "P6.png"
+            ]
+        ]
 
     #bg_path = cfg.data_raw_dir / "Niryo/P6_crop.png"
     #scene_path = cfg.data_raw_dir / "Niryo/scene01_P6_crop.png"
-    missing = [p for p in (bg_path, scene_path) if not p.exists()]
+    missing = [p for p in [*bg_paths, scene_path] if not p.exists()]
     if missing:
         print("Error, Missing inout images")
         for p in missing:
@@ -169,13 +183,22 @@ def main():
         sys.exit(1)
 
     print("1. Loading & resizing images...")
-
+    bg_converted_imgs = []
+    for path in bg_paths:
+        _, converted = load_and_preprocess_image(
+            path,
+            target_size=cfg.target_size,
+            color_space=cfg.color_space
+        )
+        bg_converted_imgs.append(converted)
+        print(f"Loaded bg: {path.name}{converted.shape}")
+    """
     bg_bgr, bg_converted = load_and_preprocess_image(
         bg_path,
         target_size=cfg.target_size,
         color_space=cfg.color_space,
     )
-    """
+    
     scene_cropped, bbox_raw, centres = (
         load_detect_and_preprocess_image(
             scene_path,
@@ -218,7 +241,9 @@ def main():
             debug=True,
         )
 
-    print(f"[✓] Background image: {bg_converted.shape}")
+    print(f"[✓] Background images loaded: {len(bg_converted_imgs)}")
+    for i, img in enumerate(bg_converted_imgs):
+        print(f"Background {i+1}: {img.shape}")
     print(f"[✓] Scene cropped image: {scene_cropped.shape}")
     if bbox_raw is not None:
         print(f"[✓] Detected bounding box: {bbox_raw}")
@@ -240,7 +265,7 @@ def main():
         max_samples=cfg.max_gmm_samples,
     )
 
-    analyzer.fit_bg(bg_converted)
+    analyzer.fit_bg_from_images(bg_converted_imgs)
     analyzer.fit_scene(scene_cropped)
 
     print("[✓] GMM fitting complete.")
