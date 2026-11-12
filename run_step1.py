@@ -3,6 +3,7 @@ import cv2
 import argparse
 import random
 from pathlib import Path
+import numpy as np
 
 from src.grabcut_shape_algorithm.config import DEFAULT_CONFIG
 from src.grabcut_shape_algorithm.core.gmm_priors import DualGMM
@@ -323,6 +324,10 @@ def main():
         raw_fg=raw_fg,
     )
 
+    cv2.imwrite("raw_bg.png", raw_bg)
+    cv2.imwrite("raw_fg.png", raw_fg)
+    cv2.imwrite("seed_mask.png", seed_mask)
+
     print("[✓] GrabCut seed mask created.")
     print("\n5. Executing GrabCut...")
 
@@ -344,6 +349,37 @@ def main():
     final_mask = segmenter.run_grabcut(
         scene_bgr,
         seed_mask,
+    )
+    final_binary = np.where(
+    (final_mask == cv2.GC_FGD) |
+    (final_mask == cv2.GC_PR_FGD),
+    255,
+    0
+    ).astype(np.uint8)
+
+    cv2.imwrite("grabcut_final_binary.png", final_binary)
+
+    cv2.imwrite(
+            str(cfg.data_out_dir / "debug_raw_fg.png"),
+            raw_fg,
+        )
+
+    cv2.imwrite(
+            str(cfg.data_out_dir / "debug_raw_bg.png"),
+            raw_bg,
+        )
+
+    # Visualize the GrabCut trimap
+    trimap_vis = np.zeros(seed_mask.shape, dtype=np.uint8)
+
+    trimap_vis[seed_mask == cv2.GC_BGD] = 0
+    trimap_vis[seed_mask == cv2.GC_FGD] = 255
+    trimap_vis[seed_mask == cv2.GC_PR_BGD] = 100
+    trimap_vis[seed_mask == cv2.GC_PR_FGD] = 180
+
+    cv2.imwrite(
+        str(cfg.data_out_dir / "debug_trimap.png"),
+        trimap_vis,
     )
 
     print("[✓] GrabCut segmentation complete.")
