@@ -51,6 +51,8 @@ class GrabCutSegmenter:
         )
 
         #Hungarian matching with max color distance
+        """
+        """
         hungarian_cost = cost_matrix.copy()
         hungarian_cost[
             hungarian_cost > max_color_distance
@@ -70,6 +72,23 @@ class GrabCutSegmenter:
             np.unique(component_labels)
         )
         foreground_scene_components = (all_scene_components - background_scene_components)
+
+        print("\n--- GMM Component Matching ---")
+
+        print("Background GMM means:")
+        print(np.round(means_bg, 1))
+
+        print("\nScene GMM means:")
+        print(np.round(means_scene, 1))
+
+        print("\nMatched scene components:")
+        print(sorted(background_scene_components))
+
+        print("\nUnmatched scene components:")
+        print(sorted(foreground_scene_components))
+
+        print("\nMatching cost matrix:")
+        print(np.round(cost_matrix, 1))
 
         raw_bg = np.isin(
             component_labels,
@@ -104,12 +123,15 @@ class GrabCutSegmenter:
         cleanup_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7,7))
 
         #clean fg
+        """
         clean_fg = cv2.morphologyEx(
             raw_fg, 
             cv2.MORPH_OPEN,
             small_kernel,
             iterations=1
         )
+        """
+        clean_fg = raw_fg.copy()
         clean_fg = cv2.morphologyEx(
             clean_fg,
             cv2.MORPH_CLOSE,

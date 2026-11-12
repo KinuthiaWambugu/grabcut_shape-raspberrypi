@@ -7,7 +7,7 @@ import os
 class PipelineConfig:
     target_size: Tuple[int, int]=(480,360)
     color_space: str = "rgb"
-    k_bg: int = 5
+    k_bg: int = 6
     k_scene: int = 12
     max_gmm_samples: int= 25000
     bg_percentile: float=10
